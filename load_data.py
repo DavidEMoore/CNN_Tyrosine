@@ -6,7 +6,8 @@ import os
 
 def load_data():
     # load positive data and resize to add label
-    os.chdir('/Users/Dave/git_tyro/Metabolite-Prediction/Tyrosine/')
+#    positive = pd.read_csv('../anderson_tyro/Metabolite-Prediction/Tyrosine/positive_train.csv', header=True)
+#    negative = pd.read_csv('../anderson_tyro/Metabolite-Prediction/Tyrosine/negative_train.csv', header=True)
     positive = pd.read_csv('positive_train.csv', header=True)
     negative = pd.read_csv('negative_train.csv', header=True)
 
