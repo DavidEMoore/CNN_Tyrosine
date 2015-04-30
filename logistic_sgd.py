@@ -39,13 +39,18 @@ import gzip
 import os
 import sys
 import time
+import pdb
 
 import numpy
 
 import theano
+theano.config.compute_test_value = 'off' # Use 'warn' to activate this feature
 import theano.tensor as T
 
-print_on = True
+print_on = False
+
+def david(var):
+    theano.printing.Print('output is ')(var)
 
 class LogisticRegression(object):
     """Multi-class Logistic Regression Class
@@ -105,21 +110,7 @@ class LogisticRegression(object):
         
 
 	# To compile a function in debug mode, just set mode='DebugMode'
-	num = T.scalar('num')
-	den = T.scalar('den')
-
-	def inspect_inputs(i, node, fn):
-		print i, node, "input(s) value(s):", [input[0] for input in fn.inputs],
-
-	def inspect_outputs(i, node, fn):
-		print "output(s) value(s):", [output[0] for output in fn.outputs]
-
-	divide = theano.function([num, den], num/den, mode=theano.compile.MonitorMode(pre_func=inspect_inputs,post_func=inspect_outputs))
-	# NaNs now cause errors
-	print divide(10,2)
-	print divide(0, 0)
-
-
+	input.tag.test_value = numpy.random.rand(5, 1650)
 	self.p_y_given_x = T.nnet.softmax(T.dot(input, self.W) + self.b)
 
         # symbolic description of how to compute prediction as class whose
@@ -166,7 +157,50 @@ class LogisticRegression(object):
 	#self.p_y_given_x = theano.printing.Print("self.p_y_given_x = ")(self.p_y_given_x)
 
 
-	self.p_y_given_x = theano.printing.Print("y = ")(self.p_y_given_x.shape[0])	
+	#need to return poss_acc + neg_acc/2
+	#take y[1] > 0.50 as pos, < 0.50 as neg, match to y
+	#need to get y[1] value, be able to compare to y
+	
+	
+	def inspect_inputs(i, node, fn):
+		print i, node, "input(s) value(s):", [input[0] for input in fn.inputs],
+
+	
+	def inspect_outputs(i, node, fn):
+		print "output(s) value(s):", [output[0] for output in fn.outputs]
+
+
+	#self.p_y_given_x = T.nnet.softmax(T.dot(input, self.W) + self.b)
+
+        # symbolic description of how to compute prediction as class whose
+        # probability is maximal
+        #self.y_pred = T.argmax(self.p_y_given_x, axis=1)
+        # end-snippet-1
+
+        # parameters of the model
+        self.params = [self.W, self.b]
+
+	#y.tag.test_value = (numpy.random.rand(5) > 0.5).astype(numpy.int32)
+
+	#y = theano.printing.Print("y")(y)	
+
+	#self.y_pred = theano.printing.Print("self.y_pred_")(self.y_pred)
+
+	#self.p_y_given_x = theano.printing.Print("self.p_y_given_x")(self.p_y_given_x)
+
+	#pdb.set_trace()
+	#self.params = theano.printing.Print("self.params")(self.params)
+
+
+	#x = theano.shared('x')
+
+	#f = theano.function([x], [x],
+		#	givens = [x],
+           #         mode=theano.compile.MonitorMode(
+          #              pre_func=inspect_inputs,
+         #               post_func=inspect_outputs))
+	#f(y)
+
 
 	#t = False	
 	#for i in self.p_y_given_x[1]:
@@ -177,8 +211,9 @@ class LogisticRegression(object):
 	#		t = False
 	#		t = theano.printing.Print("t = ")(t)
 
-
-        return -T.mean(T.log(self.p_y_given_x)[T.arange(y.shape[0]), y])
+        pos_mean = -T.sum(T.log(self.p_y_given_x)[T.arange(y.shape[0]), y]*y)/T.sum(y)
+        neg_mean = -T.sum(T.log(self.p_y_given_x)[T.arange(y.shape[0]), y]*T.switch(T.eq(y,0),1,0))/T.sum(T.switch(T.eq(y,0),1,0))
+        return (pos_mean+neg_mean)/2
         # end-snippet-2
 
     def errors(self, y):

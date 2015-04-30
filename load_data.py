@@ -6,6 +6,7 @@ import os
 import theano
 import numpy
 import theano.tensor as T
+import pdb
 
 def load_data():
     # load positive data and resize to add label
@@ -15,40 +16,52 @@ def load_data():
     negative = pd.read_csv('negative_train.csv', header=True)
 
     ppm = positive.ix[:,0] # First column are the variable names    
-    train = np.concatenate((positive.ix[:,1:np.size(positive,axis=1)],negative.ix[:,1:np.size(negative,axis=1)]),axis=1) # combine them except the first column
-    train = train.T
-    train = pd.DataFrame(train) # Now convert it to a data frame
-    train['label'] = 0
-    train.columns = ["X"+str(x) for x in list(ppm)] + ['label'] # Now correct the column names
-    #train.ix[:,train.shape[1]-1] = 0
-    train.ix[0:94,train.shape[1]-1] = 1 # Now set the first 94 samples to 1 to indicate they are positive
-    #print train.ix[0:94,train.shape[1]-1]
+    def process_data(positive_negative):
+    	#train = np.concatenate((positive.ix[:,1:np.size(positive,axis=1)],negative.ix[:,1:np.size(negative,axis=1)]),axis=1) # combine them except the first column
+    	train = positive_negative.ix[:,1:np.size(positive_negative,axis=1)]
+    	train = train.T
+    	train = pd.DataFrame(train) # Now convert it to a data frame
+    	train['label'] = 0
+    	train.columns = ["X"+str(x) for x in list(ppm)] + ['label'] # Now correct the column names
+    	#train.ix[:,train.shape[1]-1] = 0
+    	train.ix[0:94,train.shape[1]-1] = 1 # Now set the first 94 samples to 1 to indicate they are positive
+    	#print train.ix[0:94,train.shape[1]-1]
     
-    #train = pd.DataFrame(train.ix[0:200,:])
-    #print train
-    #print train.shape
-    random_order = np.random.permutation(train.shape[0]) #sample(1:nrow(features),nrow(features))
-    #print random_order
-    train = train.ix[random_order,:]
-    #print train.ix[0:94,train.shape[1]-1]
-    #lkajdsf = ljdf
+    	#train = pd.DataFrame(train.ix[0:200,:])
+    	#print train
+    	#print train.shape
+    	random_order = np.random.permutation(train.shape[0]) #sample(1:nrow(features),nrow(features))
+    	#print random_order
+    	train = train.ix[random_order,:]
+    	#print train.ix[0:94,train.shape[1]-1]
+    	#lkajdsf = ljdf
+        return train
+    positive_train = process_data(positive) 
+    negative_train = process_data(negative) 
+
+    def get_sets(train):
+    	# count rows and dims
+    	n = train.shape[0]
+
+    	# partition train, test, validate sets
+    	train_frac, test_frac, valid_frac = 0.7, 0.2, 0.1
+    	train_offset, test_offset, valid_offset = map(int,
+       	                                           map(partial(mul, n),
+       	                                               (train_frac, test_frac,
+       	                                                valid_frac)))
+    	train_set, test_set, valid_set = (train[0:train_offset].as_matrix(),
+       	                               train[train_offset+1:
+       	                                        train_offset+1+test_offset].as_matrix(),
+       	                               train[train_offset+1+test_offset+1:
+       	                                        train_offset+1+test_offset+1+valid_offset].as_matrix())
+        return train_set,test_set,valid_set	
+
+    positive_train_set, positive_test_set, positive_valid_set = get_sets(positive_train)
+    negative_train_set, negative_test_set, negative_valid_set = get_sets(negative_train)
+    train_set= np.concatenate((positive_train_set,negative_train_set),axis=0) # combine them except the first column
+    test_set= np.concatenate((positive_test_set,negative_test_set),axis=0) # combine them except the first column
+    valid_set= np.concatenate((positive_valid_set,negative_valid_set),axis=0) # combine them except the first column
     
-
-    # count rows and dims
-    n = train.shape[0]
-
-    # partition train, test, validate sets
-    train_frac, test_frac, valid_frac = 0.7, 0.2, 0.1
-    train_offset, test_offset, valid_offset = map(int,
-                                                  map(partial(mul, n),
-                                                      (train_frac, test_frac,
-                                                       valid_frac)))
-    train_set, test_set, valid_set = (train[0:train_offset].as_matrix(),
-                                      train[train_offset+1:
-                                               train_offset+1+test_offset].as_matrix(),
-                                      train[train_offset+1+test_offset+1:
-                                               train_offset+1+test_offset+1+valid_offset].as_matrix())
-
     def shared_dataset(data_xy, borrow=True):
         """ Function that loads the dataset into shared variables
         The reason we store our dataset in shared variables is to allow
